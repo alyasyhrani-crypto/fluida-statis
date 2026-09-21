@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WEB AR FLUIDA STATIS - Menyelidiki Tekanan Hidrostatis pada Bendungan</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        water: {
+                            light: '#38bdf8',
+                            DEFAULT: '#0284c7',
+                            dark: '#0369a1',
+                        },
+                        navy: {
+                            DEFAULT: '#0f172a',
+                            light: '#1e293b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.3); }
+        .glass-dark { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        canvas { display: block; border-radius: 0.75rem; }
+        .tab-btn.active { background-color: #0284c7; color: white; border-color: #0284c7; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; color: black; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-water-light selection:text-white">
+
+    <!-- HEADER NAVBAR -->
+    <header class="sticky top-0 z-50 glass border-b border-slate-200 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-water-dark to-water-light flex items-center justify-center text-white text-xl font-extrabold shadow-md shadow-water/30">
+                    💧
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 tracking-tight leading-tight">WEB AR FLUIDA STATIS</h1>
+                    <p class="text-xs text-slate-500 font-medium">Praktikum Virtual Fisika Fase F – Tekanan Hidrostatis Bendungan</p>
+                </div>
+            </div>
+            
+            <nav class="hidden md:flex items-center gap-1 text-sm font-semibold text-slate-600">
+                <button onclick="scrollToSection('beranda')" class="px-3 py-2 rounded-lg hover:text-water hover:bg-slate-100 transition">🏰 Beranda</button>
+                <button onclick="scrollToSection('fenomena')" class="px-3 py-2 rounded-lg hover:text-water hover:bg-slate-100 transition">🌊 Fenomena</button>
+                <button onclick="scrollToSection('teori')" class="px-3 py-2 rounded-lg hover:text-water hover:bg-slate-100 transition">📖 Teori</button>
+                <button onclick="scrollToSection('praktikum')" class="px-3 py-2 rounded-lg bg-water/10 text-water hover:bg-water/20 transition">🧪 Virtual Lab AR</button>
+                <button onclick="scrollToSection('lkpd')" class="px-3 py-2 rounded-lg hover:text-water hover:bg-slate-100 transition">📝 LKPD Digital</button>
+            </nav>
+
+            <div class="flex items-center gap-2">
+                <button onclick="toggleARMode()" id="btnHeaderAR" class="px-4 py-2 bg-gradient-to-r from-water to-water-dark text-white text-xs font-bold rounded-xl shadow-md shadow-water/30 hover:brightness-110 active:scale-95 transition flex items-center gap-2">
+                    <i class="fa-solid font-bold fa-vr-cardboard"></i>
+                    <span id="arHeaderBtnText">Aktifkan AR Mode</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-12">
+
+        <!-- 1. BERANDA SECTION -->
+        <section id="beranda" class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-navy-light to-slate-900 text-white p-8 md:p-12 shadow-2xl border border-slate-800">
+            <div class="absolute -top-24 -right-24 w-96 h-96 bg-water/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-water/20 border border-water/30 text-water-light text-xs font-bold">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        Fisika SMA Kelas XI / XII - Fase F
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
+                        Menyelidiki Tekanan Hidrostatis pada <span class="bg-gradient-to-r from-sky-400 to-emerald-400 bg-clip-text text-transparent">Dinding Bendungan</span>
+                    </h2>
+                    <p class="text-slate-300 text-base leading-relaxed">
+                        Mengapa bagian dasar dinding bendungan dibangun jauh lebih tebal daripada bagian atasnya? Mari bereksperimen, mengumpulkan data, dan membuktikannya secara langsung melalui simulasi 3D dan AR interaktif!
+                    </p>
+                    
+                    <!-- Pertanyaan Pemantik Box -->
+                    <div class="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-2">
+                        <div class="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                            <i class="fa-solid fa-lightbulb"></i> Pertanyaan Pemantik:
+                        </div>
+                        <p class="text-sm text-slate-200 italic font-medium">
+                            “Mengapa tekanan air pada bagian bawah bendungan lebih besar dibandingkan bagian atas, dan bagaimana fisikawan merancang bendungan yang aman?”
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3 pt-2">
+                        <button onclick="scrollToSection('praktikum')" class="px-6 py-3.5 rounded-xl bg-water hover:bg-water-dark text-white font-bold text-sm shadow-lg shadow-water/30 hover:shadow-water/50 hover:-translate-y-0.5 transition flex items-center gap-2">
+                            🧪 MULAI PENYELIDIKAN
+                        </button>
+                        <button onclick="scrollToSection('lkpd')" class="px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-sm hover:-translate-y-0.5 transition flex items-center gap-2">
+                            📝 BUKA LKPD DIGITAL
+                        </button>
+                        <button onclick="showInstructionModal()" class="px-4 py-3.5 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border border-slate-700/60 font-semibold text-xs transition flex items-center gap-1.5">
+                            ❓ PETUNJUK
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview Visual Quick Graphic -->
+                <div class="lg:col-span-5 flex justify-center">
+                    <div class="relative w-full max-w-sm aspect-square rounded-2xl bg-slate-800/90 border border-slate-700 p-4 shadow-xl flex flex-col justify-between overflow-hidden">
+                        <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-700/60 pb-2">
+                            <span class="font-bold text-slate-200">🏗️ Skema Penampang Bendungan</span>
+                            <span class="text-emerald-400 font-semibold">Simulasi Presisi</span>
+                        </div>
+                        <div class="relative flex-grow flex items-center justify-center py-4">
+                            <!-- SVG Graphic depicting Dam cross section & pressure vectors -->
+                            <svg class="w-full h-48" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Water Reservoir -->
+                                <path d="M 20 30 L 120 30 L 120 180 L 20 180 Z" fill="#0284c7" fill-opacity="0.35"/>
+                                <line x1="20" y1="30" x2="120" y2="30" stroke="#38bdf8" stroke-width="3" stroke-dasharray="4 2"/>
+                                <text x="30" y="25" fill="#38bdf8" font-size="10" font-weight="bold">Permukaan Air (h=0)</text>
+
+                                <!-- Dam Wall (Thicker at bottom) -->
+                                <path d="M 120 30 L 160 30 L 230 180 L 120 180 Z" fill="#64748b" stroke="#94a3b8" stroke-width="2"/>
+                                <text x="140" y="110" fill="#ffffff" font-size="11" font-weight="bold" transform="rotate(65, 150, 110)">Dinding Bendungan</text>
+
+                                <!-- Observation Points -->
+                                <!-- Point A -->
+                                <circle cx="120" cy="50" r="5" fill="#f59e0b"/>
+                                <text x="95" y="54" fill="#f59e0b" font-size="10" font-weight="bold">Titik A</text>
+                                <line x1="85" y1="50" x2="115" y2="50" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow)"/>
+
+                                <!-- Point B -->
+                                <circle cx="120" cy="105" r="5" fill="#f59e0b"/>
+                                <text x="95" y="109" fill="#f59e0b" font-size="10" font-weight="bold">Titik B</text>
+                                <line x1="60" y1="105" x2="115" y2="105" stroke="#f59e0b" stroke-width="3"/>
+
+                                <!-- Point C -->
+                                <circle cx="120" cy="160" r="5" fill="#ef4444"/>
+                                <text x="95" y="164" fill="#ef4444" font-size="10" font-weight="bold">Titik C</text>
+                                <line x1="30" y1="160" x2="115" y2="160" stroke="#ef4444" stroke-width="4"/>
+                            </svg>
+                        </div>
+                        <div class="text-[11px] text-slate-400 bg-slate-900/60 p-2 rounded-lg flex justify-between">
+                            <span>Vektor Tekanan (Pₕ):</span>
+                            <span class="text-amber-400 font-bold">P_C &gt; P_B &gt; P_A</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. FENOMENA KONTEKSTUAL & TUJUAN PEMBELAJARAN -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="fenomena">
+            <!-- Story Card -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 text-water font-bold text-xs uppercase tracking-wider mb-2">
+                        <i class="fa-solid fa-book-open text-base"></i> Fenomena Kontekstual
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-4">Kasus Ketahanan Dinding Waduk & Bendungan</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        Sebuah bendungan dirancang untuk menampung air dalam volume yang sangat besar. Ketika waduk terisi penuh, air memberikan gaya dorong (tekanan) secara terus-menerus ke seluruh bidang permukaan dinding.
+                    </p>
+                    <p class="text-slate-600 text-sm leading-relaxed mb-4">
+                        Namun, para insinyur sipil menemukan fakta penting: <strong>Tekanan air tidak terbagi merata secara konstan pada seluruh ketinggian dinding.</strong> Bagian dinding yang berada di kedalaman lebih dasar menerima gaya tekan yang jauh lebih besar dibandingkan bagian permukaan.
+                    </p>
+                    <div class="bg-amber-50 border-l-4 border-amber-500 p-3.5 rounded-r-xl text-xs text-amber-900 font-medium">
+                        💡 <strong>Pertanyaan Penyelidikan:</strong> Bagaimana perubahan kedalaman air ($h$) memengaruhi besarnya tekanan hidrostatis ($P_h$), dan bagaimana informasi ini mendasari ketebalan dinding bendungan?
+                    </div>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+                    <button onclick="scrollToSection('praktikum')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl transition flex items-center gap-2">
+                        <span>🔍 Amati Model 3D Bendungan</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Learning Objectives C3-C5 -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80" id="tujuan">
+                <div class="flex items-center gap-2 text-emerald-600 font-bold text-xs uppercase tracking-wider mb-2">
+                    <i class="fa-solid fa-bullseye text-base"></i> Target Kognitif & Tujuan Pembelajaran
+                </div>
+                <h3 class="text-xl font-bold text-slate-900 mb-4">Apa yang Akan Kamu Capai?</h3>
+                
+                <ul class="space-y-3 text-sm text-slate-700">
+                    <li class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition">
+                        <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-bold text-xs mt-0.5">C3</span>
+                        <span><strong>Menerapkan</strong> persamaan tekanan hidrostatis ($P_h = \rho \cdot g \cdot h$) untuk menghitung tekanan pada kedalaman tertentu.</span>
+                    </li>
+                    <li class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition">
+                        <span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold text-xs mt-0.5">C4</span>
+                        <span><strong>Menganalisis</strong> hubungan antara kedalaman ($h$), massa jenis ($\rho$), dan gravitasi ($g$) terhadap tekanan hidrostatis berdasarkan data praktikum.</span>
+                    </li>
+                    <li class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition">
+                        <span class="px-2 py-0.5 rounded bg-purple-100 text-purple-700 font-bold text-xs mt-0.5">C4</span>
+                        <span><strong>Membuat & Menginterpretasikan</strong> grafik hubungan antara kedalaman air dan tekanan hidrostatis secara nyata.</span>
+                    </li>
+                    <li class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition">
+                        <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-bold text-xs mt-0.5">C5</span>
+                        <span><strong>Mengevaluasi</strong> rancangan struktur ketebalan dinding bendungan untuk menjamin keamanan konstruksi sipil.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 3. DASAR TEORI -->
+        <section id="teori" class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80">
+            <div class="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider mb-2">
+                <i class="fa-solid fa-atom text-base"></i> Landasan Teori Fisika
+            </div>
+            <h3 class="text-2xl font-bold text-slate-900 mb-4">Tekanan Hidrostatis ($P_h$)</h3>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                <div class="lg:col-span-2 space-y-3 text-sm text-slate-600 leading-relaxed">
+                    <p>
+                        <strong>Tekanan Hidrostatis</strong> adalah tekanan yang dialami oleh suatu titik di dalam zat cair yang diam (statis), yang disebabkan oleh berat fluida yang berada di atas titik pengamatan tersebut.
+                    </p>
+                    <p>
+                        Secara matematis, persamaan tekanan hidrostatis dirumuskan sebagai:
+                    </p>
+                    <div class="p-4 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-xl font-extrabold tracking-wider shadow-inner my-2">
+                        <span class="text-sky-400">P<sub>h</sub></span> &nbsp;=&nbsp; <span class="text-emerald-400">&rho;</span> &bull; <span class="text-amber-400">g</span> &bull; <span class="text-rose-400">h</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1">
+                        <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
+                            <span class="font-bold text-sky-600">P<sub>h</sub></span> : Tekanan (Pascal / Pa)
+                        </div>
+                        <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
+                            <span class="font-bold text-emerald-600">&rho;</span> : Massa Jenis (kg/m³)
+                        </div>
+                        <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
+                            <span class="font-bold text-amber-600">g</span> : Gravitasi (m/s²)
+                        </div>
+                        <div class="p-2 bg-slate-50 rounded-lg border border-slate-200">
+                            <span class="font-bold text-rose-600">h</span> : Kedalaman dari Permukaan (m)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200 p-5 rounded-2xl space-y-3">
+                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-water"></i> Catatan Penting
+                    </h4>
+                    <ul class="text-xs text-slate-700 space-y-2 list-disc list-inside">
+                        <li><strong>Kedalaman ($h$)</strong> diukur dari <u>permukaan air ke bawah</u>, bukan dari dasar ke atas.</li>
+                        <li>Makin dalam posisi suatu titik dari permukaan air, makin besar massa fluida di atasnya, sehingga <strong>$P_h$ bertambah secara linier</strong>.</li>
+                        <li>Tekanan total mencakup tekanan atmosfer ($P_0 \approx 101.325 \text{ Pa}$): <br><code class="text-water-dark font-bold">P_total = P_0 + P_h</code></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. MODE AR & LAB PRAKTIKUM VIRTUAL 3D -->
+        <section id="praktikum" class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2 text-water font-bold text-xs uppercase tracking-wider">
+                        <i class="fa-solid fa-vr-cardboard"></i> Laboratorium Eksperimen Virtual & AR
+                    </div>
+                    <h3 class="text-2xl font-extrabold text-slate-900">Simulasi Interaktif Bendungan & Sensor Tekanan</h3>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleARMode()" class="px-5 py-2.5 bg-gradient-to-r from-water to-water-dark text-white text-xs font-bold rounded-xl shadow-lg shadow-water/30 hover:scale-105 transition flex items-center gap-2">
+                        <i class="fa-solid fa-camera"></i>
+                        <span id="arModeToggleText">Aktifkan Mode Kamera AR</span>
+                    </button>
+                    <button onclick="resetSimulation()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition">
+                        <i class="fa-solid fa-rotate-left"></i> Reset Lab
+                    </button>
+                </div>
+            </div>
+
+            <!-- Video Background container for Simulated AR Mode -->
+            <div class="relative w-full rounded-3xl overflow-hidden shadow-2xl bg-slate-950 border border-slate-800" style="min-height: 520px;">
+                <!-- AR Video element (Hidden by default, used when AR active) -->
+                <video id="arVideo" autoplay playsinline class="hidden absolute inset-0 w-full h-full object-cover z-0"></video>
+                
+                <!-- 3D Canvas -->
+                <div id="canvasContainer" class="relative z-10 w-full h-[520px]">
+                    <canvas id="threeCanvas" class="w-full h-full"></canvas>
+                </div>
+
+                <!-- Overlay Controls / Indicators on 3D viewport -->
+                <div class="absolute top-4 left-4 z-20 glass-dark p-3 rounded-2xl text-white max-w-xs text-xs space-y-1.5 shadow-xl">
+                    <div class="font-bold text-water-light flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        Status Sensor Real-Time
+                    </div>
+                    <div class="text-[11px] text-slate-300">
+                        Kedalaman Waduk Terpilih: <span id="hudDepth" class="font-bold text-white">10.0 m</span>
+                    </div>
+                    <div class="text-[11px] text-slate-300">
+                        Fluida: <span id="hudFluid" class="font-bold text-emerald-400">Air (1000 kg/m³)</span>
+                    </div>
+                </div>
+
+                <!-- AR Instruction Overlay -->
+                <div id="arOverlayNotice" class="hidden absolute top-4 right-4 z-20 glass p-3 rounded-2xl text-slate-900 text-xs font-semibold shadow-xl flex items-center gap-2 animate-bounce">
+                    <span>📱 Arahkan kamera ke permukaan datar & geser model!</span>
+                </div>
+
+                <!-- Floating Sensor Pressure HUD -->
+                <div class="absolute bottom-4 left-4 right-4 z-20 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="glass-dark p-3 rounded-2xl border-l-4 border-amber-400 text-white">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="font-bold text-amber-400">📍 TITIK A (Dangkal)</span>
+                            <span id="depthA_val" class="text-[10px]">h = 2.0 m</span>
+                        </div>
+                        <div class="text-lg font-extrabold text-white mt-1">
+                            <span id="pressA_val">19.6</span> <span class="text-xs font-normal text-slate-300">kPa</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-dark p-3 rounded-2xl border-l-4 border-sky-400 text-white">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="font-bold text-sky-400">📍 TITIK B (Tengah)</span>
+                            <span id="depthB_val" class="text-[10px]">h = 5.0 m</span>
+                        </div>
+                        <div class="text-lg font-extrabold text-white mt-1">
+                            <span id="pressB_val">49.0</span> <span class="text-xs font-normal text-slate-300">kPa</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-dark p-3 rounded-2xl border-l-4 border-emerald-400 text-white">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="font-bold text-emerald-400">📍 TITIK C (Dasar)</span>
+                            <span id="depthC_val" class="text-[10px]">h = 9.0 m</span>
+                        </div>
+                        <div class="text-lg font-extrabold text-white mt-1">
+                            <span id="pressC_val">88.2</span> <span class="text-xs font-normal text-slate-300">kPa</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIMULATION CONTROLS PANEL -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/80 space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h4 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-water"></i> Panel Pengaturan Variabel Eksperimen
+                    </h4>
+                    <span class="text-xs text-slate-500">Ubah variabel untuk mengamati dampak tekanan</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Variable 1: Water Height -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-700">Ketinggian Air Waduk (H):</label>
+                            <span id="sliderWaterHeightVal" class="text-xs font-extrabold text-water bg-sky-50 px-2 py-0.5 rounded">10.0 m</span>
+                        </div>
+                        <input type="range" id="sliderWaterHeight" min="2" max="15" step="0.5" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-water">
+                        <p class="text-[11px] text-slate-500">Mengubah tinggi total genangan air di waduk bendungan.</p>
+                    </div>
+
+                    <!-- Variable 2: Fluid Type (Density) -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-700">Jenis Fluida (&rho;):</label>
+                            <span id="fluidDensityVal" class="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">1000 kg/m³</span>
+                        </div>
+                        <select id="selectFluid" onchange="updateFluidDensity()" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-water outline-none">
+                            <option value="1000" selected>Air Murni (&rho; = 1000 kg/m³)</option>
+                            <option value="1025">Air Laut (&rho; = 1025 kg/m³)</option>
+                            <option value="800">Minyak (&rho; = 800 kg/m³)</option>
+                            <option value="1260">Gliserin (&rho; = 1260 kg/m³)</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500">Nilai massa jenis fluida memengaruhi rapat massa zat cair.</p>
+                    </div>
+
+                    <!-- Variable 3: Gravity -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs font-bold text-slate-700">Percepatan Gravitasi (g):</label>
+                            <span id="gravityVal" class="text-xs font-extrabold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">9.8 m/s²</span>
+                        </div>
+                        <select id="selectGravity" onchange="updateGravity()" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-water outline-none">
+                            <option value="9.8" selected>Bumi (g = 9.8 m/s²)</option>
+                            <option value="1.6">Bulan (g = 1.6 m/s²)</option>
+                            <option value="24.8">Yupiter (g = 24.8 m/s²)</option>
+                            <option value="10.0">Standar Pembelajaran (g = 10 m/s²)</option>
+                        </select>
+                        <p class="text-[11px] text-slate-500">Percepatan gravitasi tempat lokasi bendungan berada.</p>
+                    </div>
+                </div>
+
+                <!-- Feature Toggles -->
+                <div class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input type="checkbox" id="chkShowVectors" checked class="rounded text-water focus:ring-water w-4 h-4">
+                            <span>Tampilkan Panah Vektor Tekanan</span>
+                        </label>
+
+                        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input type="checkbox" id="chkShowJets" checked class="rounded text-water focus:ring-water w-4 h-4">
+                            <span>Simulasikan Pancaran Bocoran Air (Torricelli)</span>
+                        </label>
+                    </div>
+
+                    <button onclick="sendSimDataToLKPD()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-import"></i> Salin Data Real-Time ke LKPD
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. DIGITAL LKPD INTEGRATION -->
+        <section id="lkpd" class="bg-white rounded-3xl p-6 sm:p-8 shadow-md border border-slate-200 space-y-8">
+            <div class="border-b border-slate-200 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2 text-indigo-600 font-bold text-xs uppercase tracking-wider">
+                        <i class="fa-solid fa-clipboard-list text-base"></i> Lembar Kerja Peserta Didik Digital
+                    </div>
+                    <h3 class="text-2xl font-extrabold text-slate-900">LKPD: Menyelidiki Tekanan Hidrostatis Bendungan</h3>
+                </div>
+
+                <!-- Student Identity Header Inputs -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <input type="text" id="studentName" placeholder="Nama Peserta Didik..." class="p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-water">
+                    <input type="text" id="studentClass" placeholder="Kelas / Kelompok..." class="p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-water">
+                </div>
+            </div>
+
+            <!-- TAHAP 1: PREDIKSI & HIPOTESIS -->
+            <div class="space-y-3">
+                <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-water text-white text-xs flex items-center justify-center font-bold">1</span>
+                    Tahap Hipotesis & Prediksi (Sebelum Percobaan)
+                </h4>
+                <p class="text-xs text-slate-600">
+                    Berdasarkan pengamatan awal pada skema bendungan, buatlah hipotesis awalmu mengenai titik pengamatan mana (A, B, atau C) yang menerima tekanan paling besar dan alasannya:
+                </p>
+                <textarea id="hypoText" rows="2" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-water outline-none" placeholder="Tuliskan hipotesismu di sini... Contoh: Saya memprediksi bahwa titik C memiliki tekanan terbesar karena..."></textarea>
+            </div>
+
+            <!-- TAHAP 2: TABEL PENGUMPULAN DATA -->
+            <div class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-water text-white text-xs flex items-center justify-center font-bold">2</span>
+                        Tabel Data Hasil Praktikum Virtual
+                    </h4>
+                    <span class="text-xs text-slate-500">Massa jenis fluida &rho; = <span id="lkpdRhoVal">1000</span> kg/m³, g = <span id="lkpdGVal">9.8</span> m/s²</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left border-collapse border border-slate-200 rounded-xl overflow-hidden">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="p-3 border-r border-slate-200">Titik Pengamatan</th>
+                                <th class="p-3 border-r border-slate-200">Kedalaman $h$ (m)</th>
+                                <th class="p-3 border-r border-slate-200">Tekanan Terukur $P_h$ (kPa)</th>
+                                <th class="p-3 border-r border-slate-200">Tekanan Terhitung $\rho \cdot g \cdot h$ (kPa)</th>
+                                <th class="p-3">Status Evaluasi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 bg-white" id="dataTableBody">
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-bold text-amber-600">Titik A (Atas)</td>
+                                <td class="p-3"><input type="number" step="0.1" id="h_A" value="2.0" class="w-20 p-1 border rounded text-center"></td>
+                                <td class="p-3"><input type="number" step="0.1" id="p_meas_A" value="19.6" class="w-24 p-1 border rounded text-center font-bold"></td>
+                                <td class="p-3"><input type="number" step="0.1" id="p_calc_A" placeholder="Hitung..." class="w-24 p-1 border rounded text-center"></td>
+                                <td class="p-3" id="status_A"><span class="text-slate-400 font-semibold">Belum Dicek</span></td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-bold text-sky-600">Titik B (Tengah)</td>
+                                <td class="p-3"><input type="number" step="0.1" id="h_B" value="5.0" class="w-20 p-1 border rounded text-center"></td>
+                                <td class="p-3"><input type="number" step="0.1" id="p_meas_B" value="49.0" class="w-24 p-1 border rounded text-center font-bold"></td>
+                                <td class="p-3"><input type="number" step="0.1" id="p_calc_B" placeholder="Hitung..." class="w-24 p-1 border rounded text-center"></td>
+                                <td class="p-3" id="status_B"><span class="text-slate-400 font-semibold">Belum Dicek</span></td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-bold text-emerald-600">Titik C (Dasar)</td>
+                                <td class="p-3"><input type="number" step="0.1" id="h_C" value="9.0" class="w-20 p-1 border rounded text-center"></td>
+                                <td class="p-3"><input type="number" step="0.1" id="p_meas_C" value="88.2" class="w-24 p-1 border rounded text-center font-bold"></td>
+                                <td class="p-3"><input type="number" step="0.1" id="p_calc_C" placeholder="Hitung..." class="w-24 p-1 border rounded text-center"></td>
+                                <td class="p-3" id="status_C"><span class="text-slate-400 font-semibold">Belum Dicek</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button onclick="calculateAndCheckLKPD()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-calculator"></i> Verifikasi Perhitungan Kognitif
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAHAP 3: GRAFIK TEKANAN VS KEDALAMAN -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-water text-white text-xs flex items-center justify-center font-bold">3</span>
+                        Grafik Hubungan Tekanan Hidrostatis ($P_h$) vs Kedalaman ($h$)
+                    </h4>
+                    <button onclick="generateGraph()" class="px-3 py-1.5 bg-water/10 hover:bg-water/20 text-water font-bold text-xs rounded-lg transition">
+                        📊 Plot/Update Grafik
+                    </button>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex justify-center">
+                    <div class="w-full max-w-xl h-64">
+                        <canvas id="pressureChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAHAP 4 & 5: ANALISIS DAN EVALUASI KETEBALAN BENDUNGAN -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Analisis Data -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-bold">4</span>
+                        Analisis Data (C4 - Menganalisis)
+                    </h4>
+                    <p class="text-xs text-slate-600">
+                        Berdasarkan grafik dan tabel di atas, bagaimana bentuk grafik hubungan antara $P_h$ dan kedalaman $h$? Apa yang terjadi jika massa jenis fluida dinaikkan?
+                    </p>
+                    <textarea id="analysisText" rows="4" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Tuliskan analisis perbandingan nilai kedalaman terhadap peningkatan tekanan..."></textarea>
+                </div>
+
+                <!-- Evaluasi Konstruksi Bendungan -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-amber-600 text-white text-xs flex items-center justify-center font-bold">5</span>
+                        Evaluasi Ketebalan Bendungan (C5 - Mengevaluasi)
+                    </h4>
+                    <p class="text-xs text-slate-600">
+                        Mengapa bagian bawah dinding bendungan dibuat jauh lebih tebal dibanding bagian atasnya? Apa bahayanya jika dinding dibuat sejajar/lurus sama tebal?
+                    </p>
+                    <textarea id="evalText" rows="4" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none" placeholder="Berikan penjelasan evaluasi rekayasa konstruksi berdasarkan distribusi gaya tekanan hidrostatis..."></textarea>
+                </div>
+            </div>
+
+            <!-- TAHAP 6: KESIMPULAN & ACTION BUTTONS -->
+            <div class="space-y-3 border-t border-slate-100 pt-4">
+                <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center font-bold">6</span>
+                    Kesimpulan Akhir Penyelidikan
+                </h4>
+                <textarea id="conclusionText" rows="3" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Simpulkan hubungan antar variabel h, rho, g terhadap Ph..."></textarea>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-4 no-print">
+                    <span class="text-xs text-slate-500 italic">Pastikan seluruh data dan verifikasi telah diisi dengan lengkap.</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="window.print()" class="px-5 py-2.5 bg-gradient-to-r from-water to-navy text-white font-bold text-xs rounded-xl shadow-md hover:brightness-110 transition flex items-center gap-2">
+                            <i class="fa-solid fa-print"></i> Cetak / Simpan Laporan LKPD (PDF)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-8 border-t border-slate-800 mt-12 no-print">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
+            <p class="font-semibold text-slate-300">WEB AR FLUIDA STATIS – Media Praktikum Virtual Fisika SMA Fase F</p>
+            <p>© 2026 Pembelajaran Fisika Interaktif - Kurikulum Merdeka</p>
+        </div>
+    </footer>
+
+    <!-- INSTRUCTION MODAL -->
+    <div id="instructionModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question text-water"></i> Petunjuk Penggunaan Web AR
+                </h3>
+                <button onclick="closeInstructionModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">&times;</button>
+            </div>
+            <div class="space-y-2.5 text-xs text-slate-600 leading-relaxed">
+                <p><strong>1. Mengamati Model 3D:</strong> Klik dan tahan mouse / sentuh layar lalu geser untuk memutar sudut pandang bendungan. Gunakan scroll mouse atau cubit layar untuk zoom.</p>
+                <p><strong>2. Mode Kamera AR:</strong> Klik tombol <em>'Aktifkan Mode Kamera AR'</em> untuk memproyeksikan simulasi bendungan langsung ke dunia nyata melalui kamera perangkat Anda.</p>
+                <p><strong>3. Mengubah Variabel:</strong> Geser slider ketinggian air waduk, ubah jenis fluida, atau gravitasi untuk melihat perubahan pancaran air dan angka tekanan hidrostatis pada sensor A, B, dan C.</p>
+                <p><strong>4. Mengisi LKPD:</strong> Gunakan tombol <em>'Salin Data Real-Time ke LKPD'</em> untuk memindahkan data simulasi ke tabel pengamatan, lalu lakukan perhitungan kognitif dan cetak hasilnya.</p>
+            </div>
+            <div class="pt-2 flex justify-end">
+                <button onclick="closeInstructionModal()" class="px-4 py-2 bg-water text-white font-bold text-xs rounded-xl shadow">Paham & Mengerti</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC & THREE.JS SIMULATION ENGINE -->
+    <script>
+        // Global State
+        let scene, camera, renderer, controls;
+        let damMesh, reservoirMesh, waterSurfaceMesh;
+        let sensorSphereA, sensorSphereB, sensorSphereC;
+        let arrowA, arrowB, arrowC;
+        let jetLineA, jetLineB, jetLineC;
+        let chartInstance = null;
+        let isARActive = false;
+        let mediaStream = null;
+
+        // Physics Parameters State
+        let currentWaterHeight = 10.0; // meters
+        let currentDensity = 1000;    // kg/m3
+        let currentGravity = 9.8;      // m/s2
+
+        // Observation Points Depths (from surface)
+        let depthA = 2.0;
+        let depthB = 5.0;
+        let depthC = 9.0;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initThreeJS();
+            initChart();
+            updatePhysicsCalculations();
+            
+            // Event Listeners for Sliders
+            document.getElementById('sliderWaterHeight').addEventListener('input', (e) => {
+                currentWaterHeight = parseFloat(e.target.value);
+                document.getElementById('sliderWaterHeightVal').innerText = currentWaterHeight.toFixed(1) + ' m';
+                updateDamAndWaterVisuals();
+                updatePhysicsCalculations();
+            });
+
+            document.getElementById('chkShowVectors').addEventListener('change', (e) => {
+                const visible = e.target.checked;
+                if(arrowA) arrowA.visible = visible;
+                if(arrowB) arrowB.visible = visible;
+                if(arrowC) arrowC.visible = visible;
+            });
+
+            document.getElementById('chkShowJets').addEventListener('change', (e) => {
+                const visible = e.target.checked;
+                if(jetLineA) jetLineA.visible = visible;
+                if(jetLineB) jetLineB.visible = visible;
+                if(jetLineC) jetLineC.visible = visible;
+            });
+        });
+
+        function initThreeJS() {
+            const container = document.getElementById('canvasContainer');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a); // Slate-900
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(22, 14, 25);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('threeCanvas'), antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+
+            // Orbit Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.01; // Don't go under floor
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 40, 20);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Ground / Terrain Grid
+            const gridHelper = new THREE.GridHelper(50, 50, 0x0284c7, 0x334155);
+            gridHelper.position.y = 0;
+            scene.add(gridHelper);
+
+            // Create Dam Structure (Thicker at bottom trapezoid)
+            createDamGeometry();
+
+            // Create Water Volume
+            createWaterGeometry();
+
+            // Create Observation Sensors A, B, C
+            createSensorMarkers();
+
+            // Window Resize Listener
+            window.addEventListener('resize', onWindowResize);
+
+            // Start Animation Loop
+            animate();
+        }
+
+        function createDamGeometry() {
+            // Dam Mesh using ExtrudeGeometry or Custom Shape for trapezoid cross section
+            const damShape = new THREE.Shape();
+            // Start at bottom front (thick)
+            damShape.moveTo(0, 0);
+            damShape.lineTo(6, 0);   // Bottom thickness = 6m
+            damShape.lineTo(2, 16);  // Top thickness = 2m at height 16m
+            damShape.lineTo(0, 16);  // Flat vertical back wall facing reservoir
+            damShape.closePath();
+
+            const extrudeSettings = {
+                steps: 1,
+                depth: 20,
+                bevelEnabled: true,
+                bevelThickness: 0.2,
+                bevelSize: 0.2,
+                bevelSegments: 2
+            };
+
+            const damGeo = new THREE.ExtrudeGeometry(damShape, extrudeSettings);
+            const damMat = new THREE.MeshStandardMaterial({
+                color: 0x64748b, // Concrete Slate
+                roughness: 0.6,
+                metalness: 0.1
+            });
+
+            damMesh = new THREE.Mesh(damGeo, damMat);
+            damMesh.position.set(0, 0, -10); // Center z
+            scene.add(damMesh);
+        }
+
+        function createWaterGeometry() {
+            // Water Reservoir Box Behind Dam (facing x < 0)
+            const waterMat = new THREE.MeshPhysicalMaterial({
+                color: 0x0284c7,
+                transparent: true,
+                opacity: 0.65,
+                roughness: 0.1,
+                transmission: 0.6,
+                ior: 1.33
+            });
+
+            const waterGeo = new THREE.BoxGeometry(16, currentWaterHeight, 19.8);
+            reservoirMesh = new THREE.Mesh(waterGeo, waterMat);
+            reservoirMesh.position.set(-8, currentWaterHeight / 2, 0);
+            scene.add(reservoirMesh);
+        }
+
+        function createSensorMarkers() {
+            const sphereGeo = new THREE.SphereGeometry(0.35, 16, 16);
+
+            // Sensor A (Top)
+            sensorSphereA = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0xf59e0b }));
+            scene.add(sensorSphereA);
+
+            // Sensor B (Mid)
+            sensorSphereB = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+            scene.add(sensorSphereB);
+
+            // Sensor C (Bottom)
+            sensorSphereC = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+            scene.add(sensorSphereC);
+
+            // Vector Arrows initialized
+            const dir = new THREE.Vector3(1, 0, 0); // pointing into dam wall
+            arrowA = new THREE.ArrowHelper(dir, new THREE.Vector3(0,0,0), 1, 0xf59e0b, 0.4, 0.3);
+            arrowB = new THREE.ArrowHelper(dir, new THREE.Vector3(0,0,0), 1, 0x38bdf8, 0.4, 0.3);
+            arrowC = new THREE.ArrowHelper(dir, new THREE.Vector3(0,0,0), 1, 0x10b981, 0.4, 0.3);
+
+            scene.add(arrowA);
+            scene.add(arrowB);
+            scene.add(arrowC);
+
+            // Water Jet parabolic lines
+            jetLineA = createJetLineMesh(0xf59e0b);
+            jetLineB = createJetLineMesh(0x38bdf8);
+            jetLineC = createJetLineMesh(0x10b981);
+
+            scene.add(jetLineA);
+            scene.add(jetLineB);
+            scene.add(jetLineC);
+
+            updateDamAndWaterVisuals();
+        }
+
+        function createJetLineMesh(colorHex) {
+            const geom = new THREE.BufferGeometry();
+            const mat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 3 });
+            return new THREE.Line(geom, mat);
+        }
+
+        function updateDamAndWaterVisuals() {
+            if (!reservoirMesh) return;
+
+            // Rescale reservoir height
+            reservoirMesh.geometry.dispose();
+            reservoirMesh.geometry = new THREE.BoxGeometry(16, currentWaterHeight, 19.8);
+            reservoirMesh.position.set(-8, currentWaterHeight / 2, 0);
+
+            // Update Depths relative to water surface (y = currentWaterHeight)
+            depthA = currentWaterHeight * 0.2;
+            depthB = currentWaterHeight * 0.5;
+            depthC = currentWaterHeight * 0.9;
+
+            document.getElementById('depthA_val').innerText = 'h = ' + depthA.toFixed(1) + ' m';
+            document.getElementById('depthB_val').innerText = 'h = ' + depthB.toFixed(1) + ' m';
+            document.getElementById('depthC_val').innerText = 'h = ' + depthC.toFixed(1) + ' m';
+
+            // Positions on inner dam wall (x = 0)
+            const yA = currentWaterHeight - depthA;
+            const yB = currentWaterHeight - depthB;
+            const yC = currentWaterHeight - depthC;
+
+            sensorSphereA.position.set(0, yA, -2);
+            sensorSphereB.position.set(0, yB, 0);
+            sensorSphereC.position.set(0, yC, 2);
+
+            // Calculate Pressure for Arrow Length scaling
+            const pA = (currentDensity * currentGravity * depthA) / 1000; // kPa
+            const pB = (currentDensity * currentGravity * depthB) / 1000;
+            const pC = (currentDensity * currentGravity * depthC) / 1000;
+
+            const scaleFactor = 0.08;
+            arrowA.position.set(-pA * scaleFactor, yA, -2);
+            arrowA.setLength(pA * scaleFactor);
+
+            arrowB.position.set(-pB * scaleFactor, yB, 0);
+            arrowB.setLength(pB * scaleFactor);
+
+            arrowC.position.set(-pC * scaleFactor, yC, 2);
+            arrowC.setLength(pC * scaleFactor);
+
+            // Update Torricelli Water Jets Parabolic Curves
+            updateWaterJetCurve(jetLineA, yA, depthA, -2);
+            updateWaterJetCurve(jetLineB, yB, depthB, 0);
+            updateWaterJetCurve(jetLineC, yC, depthC, 2);
+
+            // HUD
+            document.getElementById('hudDepth').innerText = currentWaterHeight.toFixed(1) + ' m';
+        }
+
+        function updateWaterJetCurve(lineMesh, yHole, depthH, zPos) {
+            // Torricelli velocity v = sqrt(2 * g * h)
+            const v = Math.sqrt(2 * currentGravity * depthH);
+            const points = [];
+            
+            // X position of outer dam wall at height yHole
+            // Dam outer wall line: (x=6 at y=0) to (x=2 at y=16)
+            const wallThickness = 6 - (yHole / 16) * 4;
+            const startX = wallThickness;
+
+            // Trajectory equation: x(t) = startX + v * t; y(t) = yHole - 0.5 * g * t^2
+            const tMax = Math.sqrt((2 * yHole) / currentGravity);
+            const steps = 30;
+
+            for (let i = 0; i <= steps; i++) {
+                const t = (i / steps) * tMax;
+                const x = startX + v * t * 0.35; // scaled down for 3D view
+                const y = Math.max(0, yHole - 0.5 * currentGravity * t * t);
+                points.push(new THREE.Vector3(x, y, zPos));
+            }
+
+            lineMesh.geometry.dispose();
+            lineMesh.geometry = new THREE.BufferGeometry().setFromPoints(points);
+        }
+
+        function updatePhysicsCalculations() {
+            // Pressure P_h = rho * g * h
+            const pA = (currentDensity * currentGravity * depthA) / 1000; // kPa
+            const pB = (currentDensity * currentGravity * depthB) / 1000;
+            const pC = (currentDensity * currentGravity * depthC) / 1000;
+
+            document.getElementById('pressA_val').innerText = pA.toFixed(1);
+            document.getElementById('pressB_val').innerText = pB.toFixed(1);
+            document.getElementById('pressC_val').innerText = pC.toFixed(1);
+
+            // Sync with Table inputs if not manually locked
+            document.getElementById('h_A').value = depthA.toFixed(1);
+            document.getElementById('h_B').value = depthB.toFixed(1);
+            document.getElementById('h_C').value = depthC.toFixed(1);
+
+            document.getElementById('p_meas_A').value = pA.toFixed(1);
+            document.getElementById('p_meas_B').value = pB.toFixed(1);
+            document.getElementById('p_meas_C').value = pC.toFixed(1);
+
+            document.getElementById('lkpdRhoVal').innerText = currentDensity;
+            document.getElementById('lkpdGVal').innerText = currentGravity;
+
+            updateDamAndWaterVisuals();
+            generateGraph();
+        }
+
+        function updateFluidDensity() {
+            const select = document.getElementById('selectFluid');
+            currentDensity = parseFloat(select.value);
+            const names = {
+                "1000": "Air Murni (1000 kg/m³)",
+                "1025": "Air Laut (1025 kg/m³)",
+                "800": "Minyak (800 kg/m³)",
+                "1260": "Gliserin (1260 kg/m³)"
+            };
+            document.getElementById('fluidDensityVal').innerText = currentDensity + ' kg/m³';
+            document.getElementById('hudFluid').innerText = names[select.value];
+            updatePhysicsCalculations();
+        }
+
+        function updateGravity() {
+            const select = document.getElementById('selectGravity');
+            currentGravity = parseFloat(select.value);
+            document.getElementById('gravityVal').innerText = currentGravity + ' m/s²';
+            updatePhysicsCalculations();
+        }
+
+        async function toggleARMode() {
+            const video = document.getElementById('arVideo');
+            const notice = document.getElementById('arOverlayNotice');
+            const btnText1 = document.getElementById('arHeaderBtnText');
+            const btnText2 = document.getElementById('arModeToggleText');
+
+            if (!isARActive) {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment' }
+                    });
+                    video.srcObject = mediaStream;
+                    video.classList.remove('hidden');
+                    scene.background = null; // Transparent scene for AR overlay
+                    notice.classList.remove('hidden');
+
+                    btnText1.innerText = "Matikan AR Mode";
+                    btnText2.innerText = "Matikan Mode Kamera AR";
+                    isARActive = true;
+                } catch (err) {
+                    alert("Kamera tidak dapat diakses atau izin ditolak. Mode AR menggunakan latar simulasi.");
+                }
+            } else {
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
+                video.classList.add('hidden');
+                scene.background = new THREE.Color(0x0f172a);
+                notice.classList.add('hidden');
+
+                btnText1.innerText = "Aktifkan AR Mode";
+                btnText2.innerText = "Aktifkan Mode Kamera AR";
+                isARActive = false;
+            }
+        }
+
+        function resetSimulation() {
+            currentWaterHeight = 10.0;
+            currentDensity = 1000;
+            currentGravity = 9.8;
+
+            document.getElementById('sliderWaterHeight').value = 10;
+            document.getElementById('sliderWaterHeightVal').innerText = '10.0 m';
+            document.getElementById('selectFluid').value = "1000";
+            document.getElementById('selectGravity').value = "9.8";
+
+            updateFluidDensity();
+            updateGravity();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('pressureChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [0, 2, 5, 9, 12],
+                    datasets: [{
+                        label: 'Tekanan Hidrostatis (kPa)',
+                        data: [0, 19.6, 49.0, 88.2, 117.6],
+                        borderColor: '#0284c7',
+                        backgroundColor: 'rgba(2, 132, 199, 0.15)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#f59e0b'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Kedalaman h (m)', font: { weight: 'bold' } }
+                        },
+                        y: {
+                            title: { display: true, text: 'Tekanan P_h (kPa)', font: { weight: 'bold' } },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateGraph() {
+            if (!chartInstance) return;
+
+            const hA = parseFloat(document.getElementById('h_A').value) || depthA;
+            const hB = parseFloat(document.getElementById('h_B').value) || depthB;
+            const hC = parseFloat(document.getElementById('h_C').value) || depthC;
+
+            const pA = (currentDensity * currentGravity * hA) / 1000;
+            const pB = (currentDensity * currentGravity * hB) / 1000;
+            const pC = (currentDensity * currentGravity * hC) / 1000;
+
+            chartInstance.data.labels = [0, hA.toFixed(1), hB.toFixed(1), hC.toFixed(1)];
+            chartInstance.data.datasets[0].data = [0, pA.toFixed(1), pB.toFixed(1), pC.toFixed(1)];
+            chartInstance.update();
+        }
+
+        function calculateAndCheckLKPD() {
+            const hA = parseFloat(document.getElementById('h_A').value) || 0;
+            const hB = parseFloat(document.getElementById('h_B').value) || 0;
+            const hC = parseFloat(document.getElementById('h_C').value) || 0;
+
+            const calcA = (currentDensity * currentGravity * hA) / 1000;
+            const calcB = (currentDensity * currentGravity * hB) / 1000;
+            const calcC = (currentDensity * currentGravity * hC) / 1000;
+
+            const userA = parseFloat(document.getElementById('p_calc_A').value);
+            const userB = parseFloat(document.getElementById('p_calc_B').value);
+            const userC = parseFloat(document.getElementById('p_calc_C').value);
+
+            checkRow('status_A', userA, calcA);
+            checkRow('status_B', userB, calcB);
+            checkRow('status_C', userC, calcC);
+        }
+
+        function checkRow(elementId, userVal, expectedVal) {
+            const el = document.getElementById(elementId);
+            if (isNaN(userVal)) {
+                el.innerHTML = '<span class="text-amber-500 font-bold">⚠️ Masukkan Angka</span>';
+                return;
+            }
+            const diff = Math.abs(userVal - expectedVal);
+            if (diff <= 1.0) {
+                el.innerHTML = '<span class="text-emerald-600 font-bold">✅ Tepat (' + expectedVal.toFixed(1) + ' kPa)</span>';
+            } else {
+                el.innerHTML = '<span class="text-rose-600 font-bold">❌ Periksa Lagi (Harusnya ' + expectedVal.toFixed(1) + ')</span>';
+            }
+        }
+
+        function sendSimDataToLKPD() {
+            updatePhysicsCalculations();
+            scrollToSection('lkpd');
+        }
+
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showInstructionModal() {
+            document.getElementById('instructionModal').classList.remove('hidden');
+        }
+
+        function closeInstructionModal() {
+            document.getElementById('instructionModal').classList.add('hidden');
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvasContainer');
+            if(!container) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            // Water surface subtle animation wave
+            if (reservoirMesh) {
+                reservoirMesh.rotation.y = Math.sin(Date.now() * 0.001) * 0.005;
+            }
+
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
